@@ -59,6 +59,16 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("simulate", help="run an offline simulated draft (no server)")
 
     args = parser.parse_args(argv)
+
+    # Line-buffer stdout so progress and errors reach the log immediately.
+    # Python block-buffers when stdout isn't a terminal, which meant a draft
+    # that died in the background left an empty log and nothing to diagnose.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        pass
+
     config = load_config(args.config)
 
     if args.command == "fetch":
