@@ -1,0 +1,15 @@
+# Secrets: config.toml holds live ESPN session cookies (espn_s2 / SWID).
+config.toml
+
+# Local state and caches
+.venv/
+cache/
+__pycache__/
+*.egg-info/
+*.pyc
+.DS_Store
+
+# Anything that looks like a captured session
+*.sqlite
+*cookies*.json
+capture.log

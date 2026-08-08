@@ -1,0 +1,185 @@
+:root {
+  --bg: #0e1116;
+  --panel: #161b23;
+  --panel-2: #1d232d;
+  --line: #2a323e;
+  --text: #e6edf3;
+  --muted: #8b98a9;
+  --accent: #4c9aff;
+  --good: #3fb950;
+  --warn: #d29922;
+  --bad: #f85149;
+  --me: #7c5cff;
+  --qb: #f0776c; --rb: #4ec9a5; --wr: #6cb6ff; --te: #e3a857; --k: #8b98a9; --dst: #a5a5b8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", Segoe UI, sans-serif;
+}
+
+.hidden { display: none !important; }
+.num { text-align: right; }
+.hint { color: var(--muted); font-weight: 400; font-size: 11px; }
+
+/* ---- clock bar ---- */
+#clockbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px; padding: 10px 18px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+#clockbar.mine { background: linear-gradient(90deg, #2a1f5e, #1b2440); border-bottom-color: var(--me); }
+.clock-main { display: flex; align-items: baseline; gap: 12px; }
+.clock-main .label { font-size: 11px; letter-spacing: .12em; color: var(--muted); }
+#clock-team { font-size: 18px; font-weight: 650; }
+#clockbar.mine #clock-team { color: #c4b5ff; }
+.pick { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.clock-side { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.dot.live { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.dot.stale { background: var(--bad); }
+
+/* ---- run alert ---- */
+#runbar {
+  padding: 7px 18px; background: #3a2a12; color: #f0c674;
+  border-bottom: 1px solid #5a4420; font-size: 13px; font-weight: 600;
+}
+
+/* ---- layout ---- */
+main { display: grid; grid-template-columns: 290px 1fr; gap: 14px; padding: 14px; align-items: start; }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 12px; margin-bottom: 12px;
+}
+.panel h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- roster slots ---- */
+.slot { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+.slot .name { width: 46px; color: var(--muted); font-weight: 600; }
+.pips { display: flex; gap: 3px; }
+.pip { width: 13px; height: 13px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); }
+.pip.on { background: var(--good); border-color: var(--good); }
+.roster-list { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.roster-list div { font-size: 12px; color: var(--muted); display: flex; gap: 6px; }
+.roster-list .rp { color: var(--text); }
+
+/* ---- need + vona bars ---- */
+.bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+.bar .pos { width: 34px; font-weight: 700; }
+.bar .track { flex: 1; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 4px; }
+.bar .val { width: 34px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---- recent picks ---- */
+.recent { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.recent li { display: flex; gap: 7px; padding: 3px 0; border-bottom: 1px solid #1e242e; }
+.recent li:last-child { border-bottom: none; }
+.recent .ov { color: var(--muted); width: 34px; font-variant-numeric: tabular-nums; }
+.recent li.me { color: #c4b5ff; }
+
+/* ---- on-the-clock top 3 ---- */
+#yourpick {
+  background: linear-gradient(135deg, #241a52, #17203a);
+  border: 1px solid var(--me); border-radius: 10px;
+  padding: 14px 16px 12px; margin-bottom: 14px;
+}
+#yourpick h2 {
+  margin: 0 0 12px; font-size: 12px; letter-spacing: .1em;
+  text-transform: uppercase; color: #c4b5ff;
+}
+#pickcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 900px) { #pickcards { grid-template-columns: 1fr; } }
+.pcard {
+  background: #10162280; border: 1px solid #3b3570; border-radius: 8px;
+  padding: 11px 12px; cursor: pointer;
+}
+.pcard:hover { border-color: var(--me); }
+.pcard .tag {
+  font-size: 9.5px; letter-spacing: .09em; font-weight: 700;
+  color: #a99cff; margin-bottom: 6px;
+}
+.pcard .nm { font-size: 16px; font-weight: 650; margin-bottom: 4px; }
+.pcard .sub { color: var(--muted); font-size: 11.5px; margin-bottom: 7px; }
+.pcard .stats {
+  display: flex; gap: 10px; font-size: 11px; color: var(--muted);
+  border-top: 1px solid #2a2550; padding-top: 6px; margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.pcard .stats b { color: var(--text); font-weight: 600; }
+.pcard .rz { font-size: 11.5px; color: #b9b0e8; line-height: 1.4; }
+.disclaim { margin: 11px 0 0; font-size: 11px; color: #8b83bd; font-style: italic; }
+
+/* ---- board ---- */
+.content-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.content-head h2 { margin: 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.filters { display: flex; gap: 6px; align-items: center; }
+.filters button {
+  background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+  border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+}
+.filters button.active { background: var(--accent); border-color: var(--accent); color: #05121f; font-weight: 600; }
+.manual { position: relative; }
+#search {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--text); padding: 6px 9px; font-size: 12px; width: 200px;
+}
+.results {
+  position: absolute; top: 32px; right: 0; width: 260px; z-index: 30;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+}
+.results div { padding: 7px 10px; font-size: 12px; cursor: pointer; }
+.results div:hover { background: var(--accent); color: #05121f; }
+
+/* No `overflow: hidden` here: it would make the table the containing block for
+   the sticky header, which then covers the first row instead of the page top. */
+table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+thead th {
+  /* --sticky-top tracks the real height of the clock + run-alert stack, which
+     changes when a run alert appears. JS keeps it in sync. */
+  position: sticky; top: var(--sticky-top, 46px); background: var(--panel-2); z-index: 5;
+  text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); font-weight: 600;
+}
+thead th.num { text-align: right; }
+tbody td { padding: 7px 10px; border-bottom: 1px solid #1c222b; font-variant-numeric: tabular-nums; }
+/* Keep a clicked row clear of the sticky clock + header stack. */
+tbody tr { scroll-margin-top: calc(var(--sticky-top, 46px) + 44px); }
+tbody tr:hover { background: #1a212b; cursor: pointer; }
+tbody tr.top { background: #141d18; }
+tbody tr.top:hover { background: #1a2a20; }
+
+.pname { font-weight: 600; }
+.pmeta { color: var(--muted); font-size: 11px; margin-left: 6px; font-weight: 400; }
+.posbadge { display: inline-block; min-width: 30px; text-align: center; padding: 2px 5px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #0b0e13; }
+.pos-QB { background: var(--qb); } .pos-RB { background: var(--rb); } .pos-WR { background: var(--wr); }
+.pos-TE { background: var(--te); } .pos-K { background: var(--k); } .pos-DST { background: var(--dst); }
+
+.flag { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 5px; font-weight: 700; }
+.flag.value { background: #17351f; color: var(--good); }
+.flag.inj { background: #3a2412; color: var(--warn); }
+.flag.risk-high { background: #4a1418; color: #ff8a80; }
+.flag.risk-medium { background: #3a2f12; color: #e8c76a; }
+.riskline { color: #d99; font-size: 11px; margin-top: 3px; }
+.pcard .riskline { color: #ff9c94; margin-top: 6px; }
+tbody tr.has-risk td:nth-child(2) { border-left: 2px solid var(--bad); }
+.risknote { border-left: 2px solid var(--bad); padding-left: 10px; margin-bottom: 8px; }
+.risknote .rl { font-size: 10.5px; letter-spacing: .06em; color: #ff8a80; font-weight: 700; }
+.risknote div { font-size: 12px; color: #c9b5b5; }
+.why { color: var(--muted); font-size: 11.5px; max-width: 330px; }
+.last-yes { color: var(--good); } .last-no { color: var(--bad); }
+
+/* ---- expanded news row ---- */
+tr.detail td { background: #10161e; padding: 10px 14px 14px; }
+.outlook { color: #b9c5d3; font-size: 12.5px; margin-bottom: 9px; }
+.newsitem { border-left: 2px solid var(--accent); padding-left: 10px; margin-bottom: 8px; }
+.newsitem .hl { font-size: 12.5px; font-weight: 600; }
+.newsitem .st { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.newsitem .ag { color: var(--accent); font-size: 10.5px; letter-spacing: .05em; }
+.nonews { color: var(--muted); font-size: 12px; font-style: italic; }

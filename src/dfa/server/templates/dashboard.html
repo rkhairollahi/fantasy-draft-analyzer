@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Analyzer</title>
+<link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+
+<header id="clockbar">
+  <div class="clock-main">
+    <span class="label">ON THE CLOCK</span>
+    <span id="clock-team">—</span>
+    <span id="clock-pick" class="pick">—</span>
+  </div>
+  <div class="clock-side">
+    <span id="league-meta"></span>
+    <span id="next-picks"></span>
+    <span id="status-dot" class="dot" title="connection"></span>
+  </div>
+</header>
+
+<div id="runbar" class="hidden"></div>
+
+<main>
+  <aside id="sidebar">
+    <section class="panel">
+      <h2>My Roster</h2>
+      <div id="slots"></div>
+      <div id="roster-list" class="roster-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Positional Need</h2>
+      <div id="needs"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Drop-off If I Wait <span class="hint">(VONA)</span></h2>
+      <div id="vona"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent Picks</h2>
+      <ol id="recent" class="recent"></ol>
+    </section>
+  </aside>
+
+  <section id="content">
+    <section id="yourpick" class="hidden">
+      <h2>You're on the clock — consider these three</h2>
+      <div id="pickcards"></div>
+      <p class="disclaim">Recommendations only. Make the pick yourself in ESPN.</p>
+    </section>
+
+    <div class="content-head">
+      <h2>Top Available</h2>
+      <div class="filters">
+        <button class="filt active" data-pos="ALL">All</button>
+        <button class="filt" data-pos="QB">QB</button>
+        <button class="filt" data-pos="RB">RB</button>
+        <button class="filt" data-pos="WR">WR</button>
+        <button class="filt" data-pos="TE">TE</button>
+        <label class="manual">
+          <input id="search" type="text" placeholder="Record a pick manually…" autocomplete="off">
+          <div id="results" class="results hidden"></div>
+        </label>
+        <button id="undo" title="Undo last recorded pick">Undo</button>
+      </div>
+    </div>
+
+    <table id="board">
+      <thead>
+        <tr>
+          <th class="num">#</th><th>Player</th><th>Pos</th><th class="num">Tier</th>
+          <th class="num">ADP</th><th class="num">Proj</th><th class="num">VOR</th>
+          <th class="num">Last?</th><th class="why">Why</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+</main>
+
+<script src="/static/dashboard.js"></script>
+</body>
+</html>

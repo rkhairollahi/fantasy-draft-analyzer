@@ -1,0 +1,37 @@
+# Copy to config.toml and edit. config.toml is gitignored.
+season = 2026
+
+[espn]
+# From your league URL: fantasy.espn.com/football/league?leagueId=XXXXXXX
+league_id = ""
+
+# Only needed for PRIVATE leagues. In Chrome, while logged in to ESPN:
+#   DevTools > Application > Cookies > https://fantasy.espn.com
+# Copy the values of `espn_s2` and `SWID`. Keep SWID's curly braces.
+# You can also set these as env vars DFA_ESPN_S2 / DFA_SWID instead.
+espn_s2 = ""
+swid = ""
+
+[league]
+# These are auto-detected from ESPN when you run `dfa watch`.
+# They only matter for `dfa mock` and `dfa serve`, or to override detection.
+teams = 10
+rounds = 16
+scoring = "PPR"          # PPR | HALF | STANDARD
+snake = true
+
+# Your 1-indexed slot in round 1. Required for "will he last?" and VONA.
+my_draft_slot = 4
+
+[league.starters]
+QB = 1
+RB = 2
+WR = 2
+TE = 1
+FLEX = 1                 # RB/WR/TE
+K = 1
+DST = 1
+
+[server]
+host = "127.0.0.1"
+port = 8765
