@@ -139,6 +139,30 @@ Dashboard with no watcher. Type picks into the search box as they happen.
 This also works as a manual override during a live draft if a watcher stalls —
 the search box and Undo button are always active in every mode.
 
+### Pre-draft prep
+
+Open <http://127.0.0.1:8765/prep> (or the **Prep** link in the dashboard
+header) while any mode is running.
+
+Browse all 32 depth charts one team at a time — arrow keys or the team strip —
+showing QB/RB/WR/TE only. Each player card has:
+
+- **Headshot**; hover it for last season's week-by-week fantasy points,
+  scored under *your* league's rules, with missed weeks marked in red
+- **Injury & recovery history** button — current designation, injury-classified
+  news, and games missed inferred from the weekly log
+- **Tag chips** — Hunch, Split Share, Injury Likely, Undervalued
+
+Tags persist to `draft-prep.json` and show up on the draft board rows and the
+on-the-clock shortlist, so prep work pays off live. The vocabulary is data,
+not code — add your own without a code change:
+
+```bash
+curl -X POST "http://127.0.0.1:8765/api/tags/new?label=League%20Winner&tone=good"
+```
+
+`tone` is `good` (blue) or `warn` (pink) and controls the badge colour.
+
 ### Offline dry run
 
 ```bash
