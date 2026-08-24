@@ -163,6 +163,35 @@ curl -X POST "http://127.0.0.1:8765/api/tags/new?label=League%20Winner&tone=good
 
 `tone` is `good` (blue) or `warn` (pink) and controls the badge colour.
 
+### In-season waiver wire
+
+```bash
+.venv/bin/dfa serve      # then open http://127.0.0.1:8765/waivers
+```
+
+Monitors free agents in any of your leagues (pick from the dropdown) and
+sorts them by *why* you would want them, in four independently-ranked
+sections:
+
+- **Cover your own injured players** — direct backups to players already on
+  your roster who are hurt. The most actionable list on the page.
+- **Could take over a starting job** — next man up behind an injured starter
+  anywhere in the league, weighted by how good that starter is.
+- **Being added right now** — ownership climbing fast; the market has noticed
+  something you may not have.
+- **Hidden gems** — best available by value over a replacement starter, with
+  low ownership as the tie-breaker.
+
+Takeover detection joins the ESPN depth charts to live injury designations:
+if the man ahead of a free agent is Out, IR, or Questionable, he surfaces
+with the reason attached. Ranking is by value over replacement, not raw
+projection — otherwise every backup quarterback floats to the top simply
+because quarterbacks score more.
+
+In a shallow league it is normal for no free agent to beat a replacement
+starter; the page says so explicitly rather than presenting negative-value
+players as recommendations.
+
 ### Offline dry run
 
 ```bash

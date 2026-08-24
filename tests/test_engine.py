@@ -606,3 +606,83 @@ class TestDomFallbackSafety(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestWaiverScoring(unittest.TestCase):
+    """Free agent opportunity ranking."""
+
+    def setUp(self):
+        from dfa.analysis.waiver import find_opportunities, group_opportunities
+
+        self.find = find_opportunities
+        self.group = group_opportunities
+        self.replacement = {"QB": 290.0, "RB": 190.0, "WR": 200.0, "TE": 180.0}
+
+    def _fa(self, pid, name, pos, proj, owned=10.0, injury="ACTIVE"):
+        p = mkplayer(pid, name, pos, proj)
+        p.percent_owned = owned
+        p.injury = injury
+        return p
+
+    def _room(self, backup_id, starter_name, rank=2):
+        return {backup_id: {"pos": "RB", "team": "XX", "rank": rank,
+                            "mates": [{"name": starter_name, "rank": 1,
+                                       "adp": 20, "ahead": True}]}}
+
+    def test_backup_to_injured_starter_is_a_takeover(self):
+        starter = self._fa(1, "Hurt Starter", "RB", 250, injury="OUT")
+        backup = self._fa(2, "The Backup", "RB", 120)
+        opps = self.find([backup], self._room(2, "Hurt Starter"),
+                         {1: starter}, [], {}, self.replacement)
+        self.assertEqual(opps[0].kind, "takeover")
+        self.assertIn("Hurt Starter", opps[0].headline)
+
+    def test_backup_to_my_injured_player_is_a_handcuff(self):
+        starter = self._fa(1, "Hurt Starter", "RB", 250, injury="OUT")
+        backup = self._fa(2, "The Backup", "RB", 120)
+        opps = self.find([backup], self._room(2, "Hurt Starter"),
+                         {1: starter}, [starter], {}, self.replacement)
+        self.assertEqual(opps[0].kind, "handcuff")
+        self.assertEqual(opps[0].for_my_player, "Hurt Starter")
+
+    def test_handcuff_outranks_the_same_player_as_a_takeover(self):
+        starter = self._fa(1, "Hurt Starter", "RB", 250, injury="OUT")
+        backup = self._fa(2, "The Backup", "RB", 120)
+        room = self._room(2, "Hurt Starter")
+        mine = self.find([backup], room, {1: starter}, [starter], {}, self.replacement)
+        theirs = self.find([backup], room, {1: starter}, [], {}, self.replacement)
+        self.assertGreater(mine[0].score, theirs[0].score)
+
+    def test_healthy_starter_does_not_create_a_takeover(self):
+        starter = self._fa(1, "Fine Starter", "RB", 250, injury="ACTIVE")
+        backup = self._fa(2, "The Backup", "RB", 120)
+        opps = self.find([backup], self._room(2, "Fine Starter"),
+                         {1: starter}, [], {}, self.replacement)
+        self.assertNotIn(opps[0].kind, ("takeover", "handcuff"))
+
+    def test_gems_rank_by_value_not_raw_points(self):
+        """A backup QB outscores every RB on raw points but is worth less."""
+        qb = self._fa(1, "Backup QB", "QB", 285, owned=5)
+        rb = self._fa(2, "Useful RB", "RB", 215, owned=5)
+        opps = self.find([qb, rb], {}, {}, [], {}, self.replacement)
+        self.assertEqual(opps[0].player.name, "Useful RB")
+
+    def test_kickers_and_defenses_are_never_gems(self):
+        k = self._fa(1, "Some Kicker", "K", 150, owned=2)
+        opps = self.find([k], {}, {}, [], {}, self.replacement)
+        self.assertEqual(opps, [])
+
+    def test_rising_ownership_is_surfaced(self):
+        fa = self._fa(1, "Riser", "WR", 100, owned=20)
+        opps = self.find([fa], {}, {}, [], {1: 6.0}, self.replacement)
+        self.assertEqual(opps[0].kind, "rising")
+
+    def test_sections_are_ranked_independently(self):
+        starter = self._fa(1, "Hurt Starter", "RB", 250, injury="OUT")
+        backup = self._fa(2, "The Backup", "RB", 120)
+        gem = self._fa(3, "Quiet Gem", "WR", 240, owned=8)
+        opps = self.find([backup, gem], self._room(2, "Hurt Starter"),
+                         {1: starter}, [], {}, self.replacement)
+        sections = self.group(opps)
+        self.assertTrue(sections["takeover"])
+        self.assertTrue(sections["gem"])

@@ -16,6 +16,10 @@ from .sources import espn_players, news as news_source
 from .sources.risk import RiskFeed, RiskReport
 from .tags import TagStore
 
+# A same-position teammate drafted inside roughly the first ten rounds is a
+# genuine committee partner rather than replacement-level depth.
+SPLIT_ADP_CUTOFF = 100
+
 
 @dataclass
 class DraftSession:
@@ -37,8 +41,71 @@ class DraftSession:
     risk: dict[int, RiskReport] = field(default_factory=dict)
     risk_feed: RiskFeed | None = None
     risk_updated: float = 0.0
+    # Team the draft room says is on the clock, straight off the wire. More
+    # reliable than snake math: ESPN's published pickOrder can disagree with
+    # the order the room actually runs.
+    live_on_clock_team: int | None = None
     _tags: TagStore | None = field(default=None, repr=False)
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+
+    # espn_id -> that player's position room on his NFL team.
+    _depth_index: dict[int, dict] | None = field(default=None, repr=False)
+
+    def depth_index(self) -> dict[int, dict]:
+        """Who else occupies each player's position on his own team.
+
+        Built once from the ESPN depth charts. Returns, per player, his depth
+        rank plus the teammates immediately around him - the starter ahead of
+        him if he is a backup, or the next man up if he is the starter.
+        """
+        if self._depth_index is not None:
+            return self._depth_index
+
+        index: dict[int, dict] = {}
+        try:
+            from .sources.depthchart import build_name_lookup, fetch_depth_charts
+            from .sources.risk import RiskFeed
+
+            if self.risk_feed is None:
+                self.risk_feed = RiskFeed(cache_dir=self.config.cache_dir)
+            self.risk_feed._load_sleeper(force=False)
+            lookup = build_name_lookup(self.players, self.risk_feed._sleeper)
+            charts = fetch_depth_charts(
+                season=self.config.season,
+                name_lookup=lookup,
+                cache_dir=self.config.cache_dir,
+            )
+        except Exception:
+            self._depth_index = {}
+            return self._depth_index
+
+        adp_by_id = {p.espn_id: p.adp for p in self.players}
+        for chart in charts:
+            for pos, rows in chart.positions.items():
+                for i, entry in enumerate(rows):
+                    mates = []
+                    # The man ahead matters most to a backup; the man behind
+                    # matters most to a starter. Show both where they exist.
+                    for other in rows:
+                        if other.espn_id == entry.espn_id:
+                            continue
+                        if abs(other.rank - entry.rank) > 2:
+                            continue
+                        mates.append({
+                            "name": other.name,
+                            "rank": other.rank,
+                            "adp": adp_by_id.get(other.espn_id),
+                            "ahead": other.rank < entry.rank,
+                        })
+                    mates.sort(key=lambda m: m["rank"])
+                    index[entry.espn_id] = {
+                        "pos": pos,
+                        "team": chart.abbrev,
+                        "rank": entry.rank,
+                        "mates": mates[:3],
+                    }
+        self._depth_index = index
+        return index
 
     @property
     def tags(self) -> TagStore:
@@ -130,6 +197,18 @@ class DraftSession:
 
     # -- analysis ----------------------------------------------------------
 
+    def _is_my_turn(self, state) -> bool:
+        """Prefer the room's own SELECTING signal over snake arithmetic."""
+        mine = state.settings.my_team_id
+        if self.live_on_clock_team is not None and mine is not None:
+            return self.live_on_clock_team == mine
+        return state.is_my_pick()
+
+    def _on_clock_name(self, state) -> str:
+        if self.live_on_clock_team is not None:
+            return self.team_names.get(self.live_on_clock_team, "")
+        return self.team_name_for_slot(state.slot_on_the_clock())
+
     def team_name_for_slot(self, slot: int) -> str:
         team_id = self.slot_to_team.get(slot, slot)
         return self.team_names.get(team_id, "")
@@ -215,8 +294,8 @@ class DraftSession:
                     "round": rnd,
                     "pick_in_round": in_round,
                     "slot": state.slot_on_the_clock(),
-                    "team_name": self.team_name_for_slot(state.slot_on_the_clock()),
-                    "is_me": state.is_my_pick(),
+                    "team_name": self._on_clock_name(state),
+                    "is_me": self._is_my_turn(state),
                     "my_slot": state.settings.my_draft_slot,
                     "my_next_picks": my_next,
                 },
@@ -272,6 +351,7 @@ class DraftSession:
             "risk_notes": risk.notes[:4] if risk else [],
             "tags": self.tags.labels_for(player.espn_id),
             "note": self.tags.notes.get(player.espn_id, ""),
+            "room": self._room_payload(player),
             "id": player.espn_id,
             "name": player.name,
             "short_name": player.short_name,
@@ -350,6 +430,37 @@ class DraftSession:
             payload["tag"] = tag
             out.append(payload)
         return out
+
+    def _room_payload(self, player: Player) -> dict | None:
+        """His depth-chart neighbours, with a split-share flag.
+
+        A teammate at the same position who is himself being drafted early is
+        the thing you actually want to know about at the moment of the pick -
+        that's a committee, not a workhorse.
+        """
+        room = self.depth_index().get(player.espn_id)
+        if not room or not room["mates"]:
+            return None
+        drafted = self.state.drafted_ids if self.state else set()
+        mates = []
+        for mate in room["mates"]:
+            mates.append({
+                "name": mate["name"],
+                "rank": mate["rank"],
+                "adp": mate["adp"],
+                "ahead": mate["ahead"],
+                # Same-position teammate going inside the first ~10 rounds.
+                "split": bool(mate["adp"] and mate["adp"] <= SPLIT_ADP_CUTOFF),
+            })
+        return {
+            "pos": room["pos"],
+            "rank": room["rank"],
+            "mates": mates,
+            "split": any(m["split"] for m in mates),
+            "gone": [m["name"] for m in mates
+                     if m["name"] in {p.player_name for p in
+                                      (self.state.picks if self.state else [])}],
+        }
 
     def _positions_taken(self) -> dict[str, int]:
         state = self.ensure_state()

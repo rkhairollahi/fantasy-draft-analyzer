@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waiver Wire</title>
+<link rel="stylesheet" href="/static/dashboard.css">
+<link rel="stylesheet" href="/static/waivers.css">
+</head>
+<body>
+
+<header id="clockbar">
+  <div class="clock-main">
+    <span class="label">WAIVER WIRE</span>
+    <span id="league-label">—</span>
+    <span id="fa-count" class="pick"></span>
+  </div>
+  <div class="clock-side">
+    <select id="league-pick"></select>
+    <button id="refresh">Refresh</button>
+    <a class="navlink" href="/">Draft board</a>
+    <a class="navlink" href="/prep">Prep</a>
+  </div>
+</header>
+
+<div id="exposed" class="hidden"></div>
+
+<main id="wmain">
+  <div id="sections"></div>
+</main>
+
+<script src="/static/waivers.js"></script>
+</body>
+</html>

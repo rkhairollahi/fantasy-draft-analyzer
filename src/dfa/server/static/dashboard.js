@@ -55,6 +55,7 @@ function renderYourPick(d) {
       <div class="nm">${esc(p.name)}${tagBadges(p)}</div>
       <div class="sub"><span class="posbadge pos-${p.pos}">${p.pos}${p.pos_rank}</span>
         &nbsp;${p.team}${p.bye ? " · bye " + p.bye : ""} · tier ${p.tier}</div>
+      ${roomLine(p)}
       <div class="stats">
         <span>VOR <b>${p.vor.toFixed(0)}</b></span>
         <span>ADP <b>${p.adp ? p.adp.toFixed(1) : "—"}</b></span>
@@ -156,7 +157,8 @@ function renderBoard(d) {
     const main = `<tr data-id="${p.id}" class="${i < 3 ? "top" : ""}${risky ? " has-risk" : ""}">
       <td class="num">${i + 1}</td>
       <td><span class="pname">${esc(p.name)}</span>${flags}
-          <span class="pmeta">${p.team}${p.bye ? " · bye " + p.bye : ""}</span></td>
+          <span class="pmeta">${p.team}${p.bye ? " · bye " + p.bye : ""}</span>
+          ${roomLine(p)}</td>
       <td><span class="posbadge pos-${p.pos}">${p.pos}${p.pos_rank}</span></td>
       <td class="num">T${p.tier}</td>
       <td class="num">${p.adp ? p.adp.toFixed(1) : "—"}</td>
@@ -175,6 +177,35 @@ function renderBoard(d) {
       renderBoard(lastData);
     };
   });
+}
+
+/* Who else is in this player's position room on his NFL team. */
+function roomLine(p) {
+  const r = p.room;
+  if (!r) return "";
+  const me = `${r.pos}${r.rank}`;
+
+  // A same-position teammate going early is the headline: that's a committee.
+  const splits = r.mates.filter(m => m.split);
+  if (splits.length) {
+    const who = splits.map(m =>
+      `${esc(m.name)} <span class="rk">${r.pos}${m.rank}</span>` +
+      (m.adp ? ` <span class="rk">ADP ${Math.round(m.adp)}</span>` : "")).join(", ");
+    return `<div class="room split"><b>${me}</b> · shares with ${who}</div>`;
+  }
+
+  const ahead = r.mates.filter(m => m.ahead);
+  if (ahead.length) {
+    const lead = ahead[ahead.length - 1];
+    return `<div class="room"><b>${me}</b> · behind ${esc(lead.name)} ` +
+           `<span class="rk">${r.pos}${lead.rank}</span></div>`;
+  }
+  const behind = r.mates.filter(m => !m.ahead);
+  if (behind.length) {
+    return `<div class="room"><b>${me}</b> · next up ${esc(behind[0].name)} ` +
+           `<span class="rk">${r.pos}${behind[0].rank}</span></div>`;
+  }
+  return `<div class="room"><b>${me}</b></div>`;
 }
 
 function tagBadges(p) {

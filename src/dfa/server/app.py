@@ -221,6 +221,90 @@ def create_app(session: DraftSession) -> FastAPI:
             raise HTTPException(status_code=400, detail="empty tag label")
         return {"ok": True, "tag": tag}
 
+    @app.get("/api/leagues")
+    def api_leagues():
+        """Every fantasy football league this account belongs to."""
+        return JSONResponse(_my_leagues(session))
+
+    # -- in-season waiver wire ---------------------------------------------
+
+    @app.get("/waivers", response_class=HTMLResponse)
+    def waivers(request: Request):
+        return templates.TemplateResponse(request, "waivers.html", {"session": session})
+
+    @app.get("/api/waivers")
+    def api_waivers(league: str | None = None, refresh: bool = False):
+        from ..analysis.waiver import (
+            SECTION_META, find_opportunities, group_opportunities,
+            my_exposed_starters,
+        )
+
+        league_id = league or session.config.league_id
+        if not league_id:
+            raise HTTPException(status_code=400, detail="no league configured")
+
+        pools = _league_pools(session, league_id, refresh)
+        by_id = {p.espn_id: p for p in session.players}
+        for p in pools.free_agents + pools.my_roster:
+            by_id.setdefault(p.espn_id, p)
+
+        opps = find_opportunities(
+            pools.free_agents,
+            session.depth_index(),
+            by_id,
+            pools.my_roster,
+            pools.trend,
+            replacement=getattr(pools, "replacement", None)
+            or (session.board.replacement if session.board else {}),
+            limit=200,
+        )
+        grouped = group_opportunities(opps)
+
+        def payload(o):
+            return {
+                "id": o.player.espn_id,
+                "name": o.player.name,
+                "pos": o.player.pos,
+                "team": o.player.pro_team,
+                "owned": round(o.player.percent_owned, 1),
+                "proj": round(o.player.proj, 1),
+                "injury": o.player.injury,
+                "score": round(o.score, 1),
+                "headline": o.headline,
+                "reasons": o.reasons,
+                "blocked_by": o.blocked_by,
+                "vor": round(o.vor, 1),
+                "trend": round(o.trend, 1),
+            }
+
+        return JSONResponse({
+            "league_id": league_id,
+            "my_roster": [
+                {"name": p.name, "pos": p.pos, "team": p.pro_team, "injury": p.injury}
+                for p in pools.my_roster
+            ],
+            "exposed": [
+                {"name": p.name, "pos": p.pos, "injury": p.injury}
+                for p in my_exposed_starters(pools.my_roster)
+            ],
+            "free_agent_count": len(pools.free_agents),
+            # True when nobody available beats a replacement starter - normal
+            # in a shallow league, and worth saying rather than showing a
+            # section that looks broken.
+            "none_above_replacement": not any(
+                o.vor > 0 for o in grouped.get("gem", [])
+            ),
+            "sections": [
+                {
+                    "id": key,
+                    "title": title,
+                    "blurb": blurb,
+                    "players": [payload(o) for o in grouped.get(key, [])[:12]],
+                }
+                for key, title, blurb in SECTION_META
+            ],
+        })
+
     @app.get("/api/player/{player_id}")
     def api_player(player_id: int):
         rp = session.board.get(player_id) if session.board else None
@@ -263,6 +347,105 @@ def _depth_charts(session: DraftSession):
     )
     _depth_charts._cache = charts
     return charts
+
+
+_LEAGUE_CACHE: list[dict] | None = None
+_POOL_CACHE: dict[str, tuple[float, object]] = {}
+
+
+def _my_leagues(session: DraftSession) -> list[dict]:
+    """List the account's leagues via ESPN's fan API.
+
+    The league endpoints need an id you already know; this is the only place
+    that will tell you which leagues you are actually in.
+    """
+    global _LEAGUE_CACHE
+    if _LEAGUE_CACHE is not None:
+        return _LEAGUE_CACHE
+
+    import httpx
+
+    from ..sources.espn_players import USER_AGENT
+
+    config = session.config
+    leagues: list[dict] = []
+    try:
+        resp = httpx.get(
+            f"https://fan.api.espn.com/apis/v2/fans/{config.swid}",
+            params={"context": "fantasy", "lang": "en", "region": "us"},
+            headers={"User-Agent": USER_AGENT},
+            cookies={"espn_s2": config.espn_s2, "SWID": config.swid},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        for pref in resp.json().get("preferences") or []:
+            entry = (pref.get("metaData") or {}).get("entry") or {}
+            groups = entry.get("groups") or []
+            if not groups or entry.get("gameId") != 1:
+                continue  # gameId 1 is football
+            if entry.get("seasonId") and entry["seasonId"] != config.season:
+                continue
+            leagues.append({
+                "id": str(groups[0].get("groupId")),
+                "name": groups[0].get("groupName") or "League",
+                "team": entry.get("entryMetadata", {}).get("teamName") or entry.get("name"),
+            })
+    except Exception:
+        pass
+
+    if not leagues and config.league_id:
+        leagues = [{"id": config.league_id, "name": "My league", "team": None}]
+    _LEAGUE_CACHE = leagues
+    return leagues
+
+
+
+POOL_TTL = 300  # seconds; the waiver wire does not move every second
+
+
+def _league_pools(session: DraftSession, league_id: str, refresh: bool = False):
+    """League free agents and rosters, cached briefly - the fetch is slow."""
+    import time as _time
+
+    from ..sources.freeagents import fetch_pools
+    from ..watch.espn_league import EspnLeagueWatcher
+
+    hit = _POOL_CACHE.get(league_id)
+    if hit and not refresh and _time.time() - hit[0] < POOL_TTL:
+        return hit[1]
+
+    my_team_id = None
+    settings = None
+    try:
+        snapshot = EspnLeagueWatcher(
+            league_id, session.config.season,
+            session.config.espn_s2, session.config.swid,
+        ).fetch()
+        my_team_id = snapshot.settings.my_team_id
+        settings = snapshot.settings
+    except Exception:
+        pass
+
+    pools = fetch_pools(
+        league_id,
+        session.config.season,
+        session.config.league.scoring,
+        session.config.espn_s2,
+        session.config.swid,
+        my_team_id=my_team_id,
+    )
+    # Replacement levels must reflect the league being *viewed*, not whichever
+    # league the draft board happens to be configured for - an 8-team league
+    # has a much shallower baseline than a 10-team one. Computed standalone so
+    # viewing waivers never mutates a live draft session's board.
+    if settings is not None:
+        from ..analysis.board import replacement_levels
+
+        pools.replacement = replacement_levels(session.players, settings)
+        pools.settings = settings
+
+    _POOL_CACHE[league_id] = (_time.time(), pools)
+    return pools
 
 
 def _kick_news_refresh(app: FastAPI, session: DraftSession, top: int) -> None:

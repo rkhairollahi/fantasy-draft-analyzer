@@ -1,0 +1,52 @@
+/* In-season waiver wire. Builds on dashboard.css variables. */
+
+#clockbar select, #clockbar button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 5px 9px; font-size: 12px; cursor: pointer;
+}
+#clockbar button:hover { border-color: var(--accent); }
+
+#exposed {
+  padding: 9px 18px; background: #3a1a1c; border-bottom: 1px solid #5a2a2e;
+  color: #ffb4ac; font-size: 13px;
+}
+#exposed b { color: #fff; }
+
+#wmain { padding: 16px; max-width: 1400px; margin: 0 auto; }
+
+.wsection { margin-bottom: 22px; }
+.wsection h2 {
+  margin: 0 0 3px; font-size: 13px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text);
+}
+.wsection .blurb { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+.wsection.urgent h2 { color: #ffb4ac; }
+
+/* Fixed minimum so player names never wrap mid-name. */
+.wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+
+.wcard {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 9px; padding: 11px 12px;
+}
+.wcard.urgent { border-color: #7a3a3a; background: #1b1416; }
+.wcard .top { display: flex; align-items: center; gap: 7px; margin-bottom: 2px; min-width: 0; }
+.wcard .nm {
+  font-weight: 650; font-size: 14px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.wcard .own {
+  color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+.wcard .head { font-size: 12px; color: #cfe0f0; margin: 5px 0 6px; }
+.wcard.urgent .head { color: #ffc9c2; }
+.wcard .why { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.wcard .trend-up { color: var(--good); font-weight: 700; }
+.wcard .inj { color: var(--warn); font-weight: 700; font-size: 10.5px; }
+.empty { color: var(--muted); font-size: 12px; font-style: italic; }
+
+.caveat {
+  background: #2a2416; border: 1px solid #4a3f22; border-radius: 7px;
+  padding: 7px 10px; color: #e0cf9a; font-size: 11.5px; margin-bottom: 10px;
+}

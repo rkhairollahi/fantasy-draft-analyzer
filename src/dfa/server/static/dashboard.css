@@ -177,6 +177,15 @@ tbody tr.has-risk td:nth-child(2) { border-left: 2px solid var(--bad); }
 .risknote { border-left: 2px solid var(--bad); padding-left: 10px; margin-bottom: 8px; }
 .risknote .rl { font-size: 10.5px; letter-spacing: .06em; color: #ff8a80; font-weight: 700; }
 .risknote div { font-size: 12px; color: #c9b5b5; }
+/* depth-chart room: who else plays this position on his NFL team */
+.room { font-size: 10.5px; color: var(--muted); margin-top: 2px; font-weight: 400; }
+.room b { color: #9fb0c4; font-weight: 700; }
+.room .rk { color: #6d7c8d; }
+.room.split { color: #e8a5d4; }
+.room.split b { color: #e88ad0; }
+.room.split .rk { color: #b87ba8; }
+.pcard .room { margin-top: 5px; font-size: 11px; }
+
 .why { color: var(--muted); font-size: 11.5px; max-width: 330px; }
 .last-yes { color: var(--good); } .last-no { color: var(--bad); }
 
