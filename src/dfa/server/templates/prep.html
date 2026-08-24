@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Prep</title>
+<link rel="stylesheet" href="/static/dashboard.css">
+<link rel="stylesheet" href="/static/prep.css">
+</head>
+<body>
+
+<header id="clockbar">
+  <div class="clock-main">
+    <span class="label">DRAFT PREP</span>
+    <span id="team-name">—</span>
+    <span id="team-pos" class="pick"></span>
+  </div>
+  <div class="clock-side">
+    <span id="tagged-count"></span>
+    <a class="navlink" href="/">← Draft board</a>
+  </div>
+</header>
+
+<nav id="teamnav">
+  <button id="prev">‹ Prev</button>
+  <div id="teamstrip"></div>
+  <button id="next">Next ›</button>
+</nav>
+
+<main id="prepmain">
+  <div id="chart"></div>
+</main>
+
+<template id="player-card-t">
+  <div class="pcard-prep">
+    <div class="headwrap">
+      <img class="headshot" loading="lazy" alt="">
+      <div class="hovercard hidden"></div>
+    </div>
+    <div class="pname"></div>
+    <div class="pmeta-prep"></div>
+    <button class="injbtn">Injury &amp; recovery history</button>
+    <div class="injpanel hidden"></div>
+    <div class="tagrow"></div>
+  </div>
+</template>
+
+<script src="/static/prep.js"></script>
+</body>
+</html>

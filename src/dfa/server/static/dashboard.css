@@ -40,6 +40,8 @@ body {
 #clockbar.mine #clock-team { color: #c4b5ff; }
 .pick { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
 .clock-side { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12px; }
+.navlink { color: var(--accent); text-decoration: none; font-size: 12px; }
+.navlink:hover { text-decoration: underline; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
 .dot.live { background: var(--good); box-shadow: 0 0 6px var(--good); }
 .dot.stale { background: var(--bad); }
@@ -166,6 +168,9 @@ tbody tr.top:hover { background: #1a2a20; }
 .flag.inj { background: #3a2412; color: var(--warn); }
 .flag.risk-high { background: #4a1418; color: #ff8a80; }
 .flag.risk-medium { background: #3a2f12; color: #e8c76a; }
+/* user tags from draft prep */
+.flag.tag-good { background: #1c2a4a; color: #7cb3ff; border: 1px solid #2c4a7a; }
+.flag.tag-warn { background: #3a2136; color: #e88ad0; border: 1px solid #5a3155; }
 .riskline { color: #d99; font-size: 11px; margin-top: 3px; }
 .pcard .riskline { color: #ff9c94; margin-top: 6px; }
 tbody tr.has-risk td:nth-child(2) { border-left: 2px solid var(--bad); }

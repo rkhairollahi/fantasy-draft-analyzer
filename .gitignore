@@ -13,3 +13,4 @@ __pycache__/
 *.sqlite
 *cookies*.json
 capture.log
+draft-prep.json

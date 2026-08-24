@@ -52,7 +52,7 @@ function renderYourPick(d) {
     const last = p.survival > 0 ? `${Math.round(p.survival * 100)}% to last` : "—";
     return `<div class="pcard" data-id="${p.id}">
       <div class="tag">${esc(p.tag)}</div>
-      <div class="nm">${esc(p.name)}</div>
+      <div class="nm">${esc(p.name)}${tagBadges(p)}</div>
       <div class="sub"><span class="posbadge pos-${p.pos}">${p.pos}${p.pos_rank}</span>
         &nbsp;${p.team}${p.bye ? " · bye " + p.bye : ""} · tier ${p.tier}</div>
       <div class="stats">
@@ -148,7 +148,7 @@ function renderBoard(d) {
     const flags =
       (p.is_value ? `<span class="flag value">VALUE</span>` : "") +
       (p.injury_flag ? `<span class="flag inj">${esc(shortInj(p.injury))}</span>` : "") +
-      riskBadges(p);
+      riskBadges(p) + tagBadges(p);
     const last = p.survival > 0
       ? `<span class="${p.will_last ? "last-yes" : "last-no"}">${Math.round(p.survival * 100)}%</span>`
       : `<span class="hint">—</span>`;
@@ -175,6 +175,11 @@ function renderBoard(d) {
       renderBoard(lastData);
     };
   });
+}
+
+function tagBadges(p) {
+  return (p.tags || []).map(t =>
+    `<span class="flag tag-${t.tone}">${esc(t.label.toUpperCase())}</span>`).join("");
 }
 
 function riskBadges(p) {

@@ -14,6 +14,7 @@ from .config import Config
 from .models import POSITION_ORDER, DraftState, LeagueSettings, Pick, Player
 from .sources import espn_players, news as news_source
 from .sources.risk import RiskFeed, RiskReport
+from .tags import TagStore
 
 
 @dataclass
@@ -36,7 +37,16 @@ class DraftSession:
     risk: dict[int, RiskReport] = field(default_factory=dict)
     risk_feed: RiskFeed | None = None
     risk_updated: float = 0.0
+    _tags: TagStore | None = field(default=None, repr=False)
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+
+    @property
+    def tags(self) -> TagStore:
+        if self._tags is None:
+            from .config import PROJECT_ROOT
+
+            self._tags = TagStore.load(PROJECT_ROOT / "draft-prep.json")
+        return self._tags
 
     # -- setup -------------------------------------------------------------
 
@@ -260,6 +270,8 @@ class DraftSession:
             "risk_level": risk.level if risk else "none",
             "risk_flags": risk.flags[:3] if risk else [],
             "risk_notes": risk.notes[:4] if risk else [],
+            "tags": self.tags.labels_for(player.espn_id),
+            "note": self.tags.notes.get(player.espn_id, ""),
             "id": player.espn_id,
             "name": player.name,
             "short_name": player.short_name,

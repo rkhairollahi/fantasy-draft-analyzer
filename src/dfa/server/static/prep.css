@@ -1,0 +1,101 @@
+/* Draft-prep depth chart browser. Builds on dashboard.css variables. */
+
+.navlink { color: var(--accent); text-decoration: none; font-size: 12px; }
+.navlink:hover { text-decoration: underline; }
+
+#teamnav {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: 46px; z-index: 15;
+}
+#teamnav button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px;
+}
+#teamnav button:hover { border-color: var(--accent); }
+#teamstrip { display: flex; gap: 4px; overflow-x: auto; flex: 1; }
+#teamstrip .tchip {
+  padding: 4px 8px; border-radius: 5px; font-size: 11px; font-weight: 700;
+  color: var(--muted); cursor: pointer; border: 1px solid transparent;
+  position: relative;
+}
+#teamstrip .tchip:hover { color: var(--text); }
+#teamstrip .tchip.active { background: var(--accent); color: #05121f; }
+#teamstrip .tchip .dot-tagged {
+  position: absolute; top: 1px; right: 1px; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--me);
+}
+
+#prepmain { padding: 16px; }
+#chart {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  max-width: 1500px; margin: 0 auto;
+}
+@media (max-width: 1100px) { #chart { grid-template-columns: repeat(2, 1fr); } }
+
+.poscol h2 {
+  margin: 0 0 10px; font-size: 12px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+  border-bottom: 2px solid var(--line); padding-bottom: 6px;
+}
+.poscol h2 .posbadge { margin-right: 7px; }
+
+/* ---- player card ---- */
+.pcard-prep {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; margin-bottom: 12px; position: relative;
+}
+.pcard-prep.tagged { border-color: var(--me); }
+.pcard-prep .depth { position: absolute; top: 8px; right: 10px; color: var(--muted); font-size: 11px; font-weight: 700; }
+
+.headwrap { position: relative; display: flex; justify-content: center; }
+.headshot {
+  width: 84px; height: 62px; object-fit: cover; border-radius: 8px;
+  background: var(--panel-2); cursor: pointer; border: 1px solid var(--line);
+}
+.headshot:hover { border-color: var(--accent); }
+
+/* hover scoring card */
+.hovercard {
+  position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
+  z-index: 30; width: 250px; background: #0c1118; border: 1px solid var(--accent);
+  border-radius: 8px; padding: 10px; box-shadow: 0 8px 24px #000a;
+}
+.hovercard .hc-head { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.hovercard .hc-sub { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+.hovercard .spark { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin-bottom: 4px; }
+.hovercard .spark .bar-w { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; }
+.hovercard .spark .bar-w.missed { background: var(--bad); height: 100% !important; opacity: .25; }
+.hovercard .weeklbl { display: flex; justify-content: space-between; color: var(--muted); font-size: 9.5px; }
+.hovercard .nohist { color: var(--muted); font-size: 11.5px; font-style: italic; }
+
+.pname { text-align: center; font-weight: 650; font-size: 14px; margin-top: 8px; }
+.pmeta-prep { text-align: center; color: var(--muted); font-size: 11px; margin: 2px 0 8px; }
+.pmeta-prep .inj-bad { color: var(--warn); font-weight: 700; }
+
+.injbtn {
+  display: block; width: 100%; background: none; border: 1px solid var(--line);
+  color: var(--muted); border-radius: 6px; padding: 4px 0; font-size: 11px;
+  cursor: pointer; margin-bottom: 8px;
+}
+.injbtn:hover { color: var(--text); border-color: var(--warn); }
+
+.injpanel {
+  background: #171214; border: 1px solid #4a2a2a; border-radius: 7px;
+  padding: 8px 10px; font-size: 11.5px; margin-bottom: 8px;
+}
+.injpanel .ih { color: #ff9c94; font-weight: 700; font-size: 10px; letter-spacing: .07em; margin-bottom: 4px; }
+.injpanel div { margin-bottom: 3px; color: #cbb; }
+.injpanel .lv-high { color: #ff8a80; }
+.injpanel .none { color: var(--muted); font-style: italic; }
+
+/* tag chips */
+.tagrow { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.tagchip {
+  font-size: 10.5px; padding: 3px 8px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); color: var(--muted); background: var(--panel-2);
+  user-select: none;
+}
+.tagchip:hover { border-color: var(--text); color: var(--text); }
+.tagchip.on-good { background: #17351f; border-color: var(--good); color: var(--good); font-weight: 700; }
+.tagchip.on-warn { background: #3a2412; border-color: var(--warn); color: var(--warn); font-weight: 700; }
