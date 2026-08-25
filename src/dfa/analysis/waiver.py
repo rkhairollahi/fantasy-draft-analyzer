@@ -18,8 +18,12 @@ INJURY_OPENING = {
     "SUSPENSION": 0.9, "NON_FOOTBALL_INJURY": 0.85,
     "DOUBTFUL": 0.7, "QUESTIONABLE": 0.4, "DAY_TO_DAY": 0.35,
 }
-# Ownership swing (percentage points in a week) that counts as real momentum.
-RISING_THRESHOLD = 1.5
+# Ownership swing (percentage points in a week) that counts as momentum.
+# Set at 1.5 this read as a broken feed most weeks: on a typical day only two
+# free agents in 300 clear that bar. The floor is deliberately low so the
+# section shows who is actually moving; the card prints the real number, and
+# the page flags a quiet wire rather than overselling a 0.6-point drift.
+RISING_THRESHOLD = 0.5
 # Above this ownership a player isn't really a find any more.
 GEM_MAX_OWNED = 55.0
 # Kickers and defences are streamed weekly; they are never a "find".

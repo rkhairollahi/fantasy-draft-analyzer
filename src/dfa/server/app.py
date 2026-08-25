@@ -243,7 +243,15 @@ def create_app(session: DraftSession) -> FastAPI:
         if not league_id:
             raise HTTPException(status_code=400, detail="no league configured")
 
-        pools = _league_pools(session, league_id, refresh)
+        try:
+            pools = _league_pools(session, league_id, refresh)
+        except Exception as exc:
+            # An unknown or inaccessible league is a client mistake, not a
+            # server fault - ESPN's 404 used to surface as a bare 500.
+            raise HTTPException(
+                status_code=404,
+                detail=f"could not read league {league_id}: {type(exc).__name__}",
+            ) from exc
         by_id = {p.espn_id: p for p in session.players}
         for p in pools.free_agents + pools.my_roster:
             by_id.setdefault(p.espn_id, p)
@@ -294,6 +302,11 @@ def create_app(session: DraftSession) -> FastAPI:
             "none_above_replacement": not any(
                 o.vor > 0 for o in grouped.get("gem", [])
             ),
+            # Nobody is moving much this week - worth saying, so a short
+            # "being added" list doesn't read as a broken feed.
+            "quiet_wire": max(
+                (o.trend for o in grouped.get("rising", [])), default=0.0
+            ) < 1.5,
             "sections": [
                 {
                     "id": key,

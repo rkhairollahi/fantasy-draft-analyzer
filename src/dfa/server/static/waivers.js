@@ -58,10 +58,16 @@ function render(d) {
       : `<div class="empty">Nothing here right now.</div>`;
     // Be explicit when the pool is genuinely picked over, rather than letting
     // a list of negative-value players look like a recommendation.
-    const caveat = (sec.id === "gem" && d.none_above_replacement)
-      ? `<div class="caveat">No free agent currently projects above a
-         replacement starter — normal in a shallow league. These are simply
-         the best of what's left.</div>` : "";
+    let caveat = "";
+    if (sec.id === "gem" && d.none_above_replacement) {
+      caveat = `<div class="caveat">No free agent currently projects above a
+        replacement starter — normal in a shallow league. These are simply
+        the best of what's left.</div>`;
+    } else if (sec.id === "rising" && d.quiet_wire) {
+      caveat = `<div class="caveat">Quiet week — nobody is being added in
+        volume right now. These are the biggest movers, but the swings are
+        small.</div>`;
+    }
     return `<section class="wsection ${urgent ? "urgent" : ""}">
       <h2>${esc(sec.title)}</h2>
       <div class="blurb">${esc(sec.blurb)}</div>

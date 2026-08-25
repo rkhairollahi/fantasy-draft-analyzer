@@ -686,3 +686,45 @@ class TestWaiverScoring(unittest.TestCase):
         sections = self.group(opps)
         self.assertTrue(sections["takeover"])
         self.assertTrue(sections["gem"])
+
+
+class TestWaiverEdgeCases(unittest.TestCase):
+    """Guards for the failure modes found by sweeping the live API."""
+
+    def setUp(self):
+        from dfa.analysis.waiver import RISING_THRESHOLD, find_opportunities
+
+        self.find = find_opportunities
+        self.threshold = RISING_THRESHOLD
+        self.replacement = {"WR": 200.0, "RB": 190.0}
+
+    def _fa(self, pid, name, pos, proj, owned=10.0):
+        p = mkplayer(pid, name, pos, proj)
+        p.percent_owned = owned
+        return p
+
+    def test_rising_threshold_catches_a_typical_week(self):
+        """At 1.5 only ~2 of 300 free agents ever qualified."""
+        self.assertLessEqual(self.threshold, 0.75)
+
+    def test_modest_ownership_gain_still_surfaces(self):
+        fa = self._fa(1, "Small Riser", "WR", 100)
+        opps = self.find([fa], {}, {}, [], {1: 0.8}, self.replacement)
+        self.assertEqual(opps[0].kind, "rising")
+
+    def test_flat_ownership_is_not_rising(self):
+        fa = self._fa(1, "Flat Guy", "WR", 100)
+        opps = self.find([fa], {}, {}, [], {1: 0.0}, self.replacement)
+        self.assertNotEqual(opps[0].kind, "rising")
+
+    def test_empty_pool_returns_nothing(self):
+        self.assertEqual(self.find([], {}, {}, [], {}, self.replacement), [])
+
+    def test_missing_replacement_levels_do_not_crash(self):
+        fa = self._fa(1, "Someone", "WR", 100)
+        self.assertTrue(self.find([fa], {}, {}, [], {}, None))
+
+    def test_player_already_on_my_roster_is_excluded(self):
+        fa = self._fa(1, "Mine Already", "WR", 220)
+        opps = self.find([fa], {}, {}, [fa], {}, self.replacement)
+        self.assertEqual(opps, [])
