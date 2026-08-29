@@ -28,6 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     p_watch.add_argument("--league", help="ESPN league id (overrides config)")
     p_watch.add_argument("--slot", type=int, help="your draft slot, 1-indexed")
 
+    sub.add_parser("app", help="launcher: sign in, pick a league, choose a mode")
+
     p_mock = sub.add_parser("mock", help="dashboard + browser watcher for ESPN mocks")
     p_mock.add_argument("--slot", type=int, help="your draft slot, 1-indexed")
     p_mock.add_argument(
@@ -77,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_serve(config)
     if args.command == "watch":
         return cmd_watch(config, args)
+    if args.command == "app":
+        return cmd_app(config, args)
     if args.command == "mock":
         return cmd_mock(config, args)
     if args.command == "check":
@@ -226,6 +230,28 @@ def _poll_league(session: DraftSession, config, league_id: str) -> None:
         except Exception as exc:
             session.status_detail = f"poll error: {exc}"
         time.sleep(config.poll_interval)
+
+
+def cmd_app(config, args) -> int:
+    """Serve the launcher. Modes are started from the UI, not the CLI."""
+    session = _prepare(config)
+    session.status = "idle"
+    session.status_detail = "Choose a mode from the menu."
+    url = f"http://{config.host}:{config.port}/"
+    print(f"\n  Fantasy Draft Analyzer: {url}\n", flush=True)
+
+    def open_browser():
+        import webbrowser
+
+        time.sleep(1.5)
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    threading.Thread(target=open_browser, daemon=True).start()
+    _run_server(config, session)
+    return 0
 
 
 def cmd_mock(config, args) -> int:

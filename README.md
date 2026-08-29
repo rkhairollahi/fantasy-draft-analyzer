@@ -25,18 +25,32 @@ Built and verified against live 2026 ESPN data.
   It recommends; you make the pick yourself in ESPN. Nothing is ever
   auto-drafted for you.
 
-## Setup
+## Running it
+
+Double-click **Fantasy Draft Analyzer** on your Desktop, or:
 
 ```bash
-cd ~/fantasy-draft-analyzer
-cp config.example.toml config.toml     # then edit it
-.venv/bin/dfa fetch                    # warm the player cache
-.venv/bin/dfa check                    # verify ESPN access + show detected settings
+.venv/bin/dfa app
 ```
 
-Put your league id in `config.toml`. Everything else — team count, scoring,
-roster slots, your draft slot — is auto-detected from ESPN. Keep the file
-chmod 600; it holds session cookies and is gitignored.
+That opens a menu that walks you through it:
+
+1. **Sign in to ESPN** — opens a browser window; sign in normally. The session
+   is saved to `espn-session.json` (gitignored) and the browser profile
+   persists, so this is usually a one-time step.
+2. **Choose a league** — every football league on your account is listed.
+3. **Pick a mode:**
+   - **Practice draft** — a full mock against bots using that league's real
+     settings. Choose your slot and clock, then draft from the board. If the
+     clock runs out the app takes its own top recommendation for you.
+   - **Draft** — follows your real draft. Start it before the draft opens and
+     it waits, then attaches to the draft room while you pick in your own
+     ESPN tab.
+   - **Free agency analysis** — locked until that league's draft is complete,
+     because there are no rosters to analyse before then.
+
+No config file is required. `config.toml` still works if you prefer to pin a
+league or credentials by hand.
 
 ### Refreshing the ESPN cookies
 

@@ -36,8 +36,39 @@ function render(d) {
   renderNeeds(d);
   renderVona(d);
   renderRecent(d);
+  renderPracticeBar(d);
   renderYourPick(d);
   renderBoard(d);
+}
+
+/* Practice mode: show the clock and let the user actually pick. */
+function renderPracticeBar(d) {
+  const bar = $("practicebar");
+  const r = d.runner || {};
+  if (r.mode !== "practice") { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  if (d.on_clock.is_me && r.seconds_left !== null && r.seconds_left !== undefined) {
+    const low = r.seconds_left <= 10;
+    bar.className = low ? "urgent" : "";
+    bar.innerHTML = `<b>YOUR PICK</b> — ${r.seconds_left}s on the clock.
+      Click <b>Draft</b> on any player, or the app takes its own top pick.`;
+  } else {
+    bar.className = "";
+    const last = (r.autopicked || []).slice(-1)[0];
+    bar.innerHTML = `Practice draft running.` +
+      (last ? ` Last auto-pick: <b>${esc(last)}</b>.` : "");
+  }
+}
+
+async function draftPlayer(id) {
+  try {
+    const res = await fetch(`/api/practice/pick/${id}`, { method: "POST" });
+    if (res.ok) refresh();
+  } catch { /* the clock may have just expired */ }
+}
+
+function canDraft(d) {
+  return (d.runner || {}).mode === "practice" && d.on_clock.is_me;
 }
 
 function renderYourPick(d) {
@@ -48,6 +79,12 @@ function renderYourPick(d) {
     return;
   }
   panel.classList.remove("hidden");
+  const note = $("disclaimer");
+  if (note) {
+    note.textContent = canDraft(d)
+      ? "Click Draft on any player to make the pick."
+      : "Recommendations only. Make the pick yourself in ESPN.";
+  }
   $("pickcards").innerHTML = d.top3.map(p => {
     const last = p.survival > 0 ? `${Math.round(p.survival * 100)}% to last` : "—";
     return `<div class="pcard" data-id="${p.id}">
@@ -146,10 +183,7 @@ function renderBoard(d) {
   const rows = d.available.filter(p => posFilter === "ALL" || p.pos === posFilter);
   const body = $("rows");
   body.innerHTML = rows.map((p, i) => {
-    const flags =
-      (p.is_value ? `<span class="flag value">VALUE</span>` : "") +
-      (p.injury_flag ? `<span class="flag inj">${esc(shortInj(p.injury))}</span>` : "") +
-      riskBadges(p) + tagBadges(p);
+    const flags = badgeSet(p);
     const last = p.survival > 0
       ? `<span class="${p.will_last ? "last-yes" : "last-no"}">${Math.round(p.survival * 100)}%</span>`
       : `<span class="hint">—</span>`;
@@ -166,10 +200,18 @@ function renderBoard(d) {
       <td class="num">${p.vor.toFixed(0)}</td>
       <td class="num">${last}</td>
       <td class="why">${esc((p.reasons || []).join(" · "))}</td>
+      <td class="pickcell">${canDraft(lastData)
+        ? `<button class="draftbtn" data-draft="${p.id}">Draft</button>` : ""}</td>
     </tr>`;
     return main + (expanded === p.id ? detailRow(p) : "");
   }).join("");
 
+  body.querySelectorAll("[data-draft]").forEach(btn => {
+    btn.onclick = (ev) => {
+      ev.stopPropagation();   // don't also expand the row
+      draftPlayer(Number(btn.dataset.draft));
+    };
+  });
   body.querySelectorAll("tr[data-id]").forEach(tr => {
     tr.onclick = () => {
       const id = Number(tr.dataset.id);
@@ -208,6 +250,28 @@ function roomLine(p) {
   return `<div class="room"><b>${me}</b></div>`;
 }
 
+/* One badge per distinct label: the ESPN designation and the risk flags
+   frequently repeat each other (QUES QUES), which reads as a bug. */
+function badgeSet(p) {
+  const out = [];
+  const seen = new Set();
+  const push = (cls, label) => {
+    const key = String(label).toUpperCase();
+    if (!label || seen.has(key)) return;
+    seen.add(key);
+    out.push(`<span class="flag ${cls}">${esc(label)}</span>`);
+  };
+  if (p.is_value) push("value", "VALUE");
+  if (p.injury_flag) push("inj", shortInj(p.injury));
+  const rc = p.risk_level === "high" ? "risk-high" : "risk-medium";
+  if (p.risk_level === "high" || p.risk_level === "medium") {
+    const labels = (p.risk_flags || []).length ? p.risk_flags : ["RISK"];
+    labels.forEach(f => push(rc, f));
+  }
+  (p.tags || []).forEach(t => push(`tag-${t.tone}`, t.label.toUpperCase()));
+  return out.join("");
+}
+
 function tagBadges(p) {
   return (p.tags || []).map(t =>
     `<span class="flag tag-${t.tone}">${esc(t.label.toUpperCase())}</span>`).join("");
@@ -236,7 +300,7 @@ function detailRow(p) {
         <div class="st">${esc(n.story)}</div></div>`).join("")
     : `<div class="nonews">No recent news items.</div>`;
   const outlook = p.outlook ? `<div class="outlook"><b>Outlook:</b> ${esc(p.outlook)}</div>` : "";
-  return `<tr class="detail"><td colspan="9">${riskBlock(p)}${outlook}${news}</td></tr>`;
+  return `<tr class="detail"><td colspan="10">${riskBlock(p)}${outlook}${news}</td></tr>`;
 }
 
 function shortInj(s) {

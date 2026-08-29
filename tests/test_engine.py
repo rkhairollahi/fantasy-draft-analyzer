@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import unittest
 
 from dfa.analysis.board import Board, replacement_levels
@@ -728,3 +729,128 @@ class TestWaiverEdgeCases(unittest.TestCase):
         fa = self._fa(1, "Mine Already", "WR", 220)
         opps = self.find([fa], {}, {}, [fa], {}, self.replacement)
         self.assertEqual(opps, [])
+
+
+class TestPlaceholderVsDefense(unittest.TestCase):
+    """Team defenses carry negative ids; only -1 is the empty-slot sentinel.
+
+    Filtering picks on `playerId <= 0` silently dropped every D/ST in a real
+    draft - a completed 8-team league loaded 104 of 112 picks, missing exactly
+    one defense per team.
+    """
+
+    def setUp(self):
+        from dfa.models import is_real_pick
+        from dfa.watch.espn_league import EspnLeagueWatcher
+
+        self.is_real_pick = is_real_pick
+        self.W = EspnLeagueWatcher
+
+    def test_placeholder_is_not_a_real_pick(self):
+        self.assertFalse(self.is_real_pick(-1))
+
+    def test_defenses_are_real_picks(self):
+        for dst_id in (-16007, -16014, -16023, -16033, -16034):
+            self.assertTrue(self.is_real_pick(dst_id), dst_id)
+
+    def test_normal_players_are_real_picks(self):
+        self.assertTrue(self.is_real_pick(4429795))
+
+    def test_non_integers_are_not_picks(self):
+        for value in (None, "4429795", 3.5):
+            self.assertFalse(self.is_real_pick(value), value)
+
+    def test_defense_picks_survive_parsing(self):
+        detail = {"picks": [
+            {"playerId": -1, "roundId": 1, "roundPickNumber": 1,
+             "overallPickNumber": 1, "teamId": 1},
+            {"playerId": -16033, "roundId": 14, "roundPickNumber": 2,
+             "overallPickNumber": 106, "teamId": 1},
+            {"playerId": 4429795, "roundId": 1, "roundPickNumber": 2,
+             "overallPickNumber": 2, "teamId": 2},
+        ]}
+        parsed = self.W._parse_picks(detail, {-16033: "DST", 4429795: "RB"})
+        ids = {p.player_id for p in parsed}
+        self.assertEqual(ids, {-16033, 4429795})
+        self.assertIn("DST", {p.pos for p in parsed})
+
+
+class TestModeRunner(unittest.TestCase):
+    """Practice draft: clock, manual picks and the autopick fallback."""
+
+    def setUp(self):
+        from dfa.config import Config
+        from dfa.runner import ModeRunner
+        from dfa.session import DraftSession
+
+        config = Config(cache_dir=None)
+        self.session = DraftSession(config=config)
+        self.session.players = pool()
+        self.settings = LeagueSettings(
+            teams=4, rounds=3,
+            starters={"QB": 1, "RB": 1, "WR": 1},
+        )
+        self.session.ensure_state(self.settings)
+        self.session._rebuild_board()
+        self.runner = ModeRunner(self.session, config)
+
+    def tearDown(self):
+        self.runner.stop()
+
+    def test_practice_sets_my_slot_and_team(self):
+        self.runner.start_practice(self.settings, slot=3, pick_seconds=600)
+        time.sleep(0.4)
+        self.assertEqual(self.session.state.settings.my_draft_slot, 3)
+        self.assertEqual(self.session.state.settings.my_team_id, 3)
+
+    def test_starting_a_mode_keeps_its_state(self):
+        """_launch used to call stop() after the caller built the state,
+        resetting the runner straight back to idle."""
+        self.runner.start_practice(self.settings, slot=1, pick_seconds=600)
+        self.assertEqual(self.runner.state.mode, "practice")
+        time.sleep(0.4)
+        self.assertEqual(self.runner.state.mode, "practice")
+
+    def test_bots_draft_up_to_my_pick_then_wait(self):
+        self.runner.start_practice(self.settings, slot=3, pick_seconds=600)
+        deadline = time.time() + 8
+        while time.time() < deadline and len(self.session.state.picks) < 2:
+            time.sleep(0.2)
+        self.assertEqual(len(self.session.state.picks), 2)
+        # It is now our pick, and the draft is waiting on us.
+        self.assertTrue(self.session.state.is_my_pick())
+        time.sleep(1.0)
+        self.assertEqual(len(self.session.state.picks), 2)
+
+    def test_manual_pick_is_accepted_on_my_turn(self):
+        self.runner.start_practice(self.settings, slot=1, pick_seconds=600)
+        deadline = time.time() + 5
+        while time.time() < deadline and not self.runner.state.clock_expires:
+            time.sleep(0.1)
+        target = self.session.board.available(set())[5]
+        self.assertTrue(self.runner.submit_pick(target.id))
+        time.sleep(1.0)
+        self.assertIn(target.id, self.session.state.drafted_ids)
+
+    def test_autopick_fires_when_the_clock_expires(self):
+        self.runner.start_practice(self.settings, slot=1, pick_seconds=1)
+        deadline = time.time() + 10
+        while time.time() < deadline and not self.runner.state.autopicked:
+            time.sleep(0.2)
+        self.assertTrue(self.runner.state.autopicked)
+        self.assertTrue(self.session.state.my_roster())
+
+    def test_pick_rejected_when_it_is_not_my_turn(self):
+        self.runner.start_practice(self.settings, slot=4, pick_seconds=600)
+        time.sleep(0.3)
+        self.assertFalse(self.runner.submit_pick(1))
+
+    def test_a_crashing_mode_reports_instead_of_hanging(self):
+        def boom():
+            raise RuntimeError("kaboom")
+
+        self.runner.state.mode = "practice"
+        self.runner._launch(boom)
+        time.sleep(0.5)
+        self.assertEqual(self.runner.state.mode, "idle")
+        self.assertIn("kaboom", self.runner.state.detail)

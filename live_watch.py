@@ -19,6 +19,7 @@ import uvicorn
 
 from dfa.config import load_config
 from dfa.server.app import create_app
+from dfa.models import is_real_pick
 from dfa.session import DraftSession
 from dfa.sources.firefox_cookies import load_espn_cookies
 from dfa.watch.espn_league import EspnLeagueWatcher
@@ -147,11 +148,11 @@ def replay_capture(session: DraftSession, path) -> None:
         return
     replayed = 0
     for line in path.read_text(errors="ignore").splitlines():
-        match = re.match(r"^SELECTED (\d+) (\d+)", line)
+        match = re.match(r"^SELECTED (-?\d+) (-?\d+)", line)
         if not match:
             continue
         team_id, player_id = int(match.group(1)), int(match.group(2))
-        if player_id <= 0:
+        if not is_real_pick(player_id):
             continue
         pick = session.record_pick(player_id, team_id=team_id)
         if pick:

@@ -31,6 +31,9 @@ class Config:
     poll_interval: float = 3.0
     host: str = "127.0.0.1"
     port: int = 8765
+    # Full browser cookie jar from an interactive sign-in. espn_s2/SWID alone
+    # authenticate the JSON API but not the draft room web app.
+    browser_cookies: list = field(default_factory=list)
 
     @property
     def has_private_league_auth(self) -> bool:

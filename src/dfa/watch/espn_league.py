@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from ..models import POSITION_BY_ID, DraftState, LeagueSettings, Pick
+from ..models import POSITION_BY_ID, DraftState, LeagueSettings, Pick, is_real_pick
 from ..sources.espn_players import BASE, USER_AGENT
 
 # ESPN lineupSlotId -> our slot names, for reading rosterSettings.
@@ -192,8 +192,9 @@ class EspnLeagueWatcher:
             player_id = raw.get("playerId")
             # ESPN pre-seeds the board with one empty slot per pick, carrying
             # playerId -1. Those are not selections; ingesting them would show
-            # a full draft before anyone has picked.
-            if not isinstance(player_id, int) or player_id <= 0:
+            # a full draft before anyone has picked. Team defenses also carry
+            # negative ids, so only the -1 sentinel may be filtered.
+            if not is_real_pick(player_id):
                 continue
             picks.append(
                 Pick(
@@ -222,7 +223,7 @@ class EspnLeagueWatcher:
             if (
                 pick.get("roundId") == 1
                 and pick.get("teamId") == my_team_id
-                and (pick.get("playerId") or 0) > 0
+                and is_real_pick(pick.get("playerId"))
             ):
                 return pick.get("roundPickNumber")
         return None

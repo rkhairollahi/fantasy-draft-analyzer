@@ -20,6 +20,16 @@ PRO_TEAM_BY_ID = {
 # Which positions may legally fill a FLEX slot.
 FLEX_POSITIONS = ("RB", "WR", "TE")
 
+# ESPN seeds an undrafted board with one empty pick per slot carrying this
+# exact id. Do NOT widen this to "any negative id": team defenses are
+# legitimately negative (-16007 .. -16034), and filtering on <= 0 silently
+# discards every D/ST pick in a real draft.
+PLACEHOLDER_PLAYER_ID = -1
+
+
+def is_real_pick(player_id) -> bool:
+    return isinstance(player_id, int) and player_id != PLACEHOLDER_PLAYER_ID
+
 
 @dataclass
 class Player:

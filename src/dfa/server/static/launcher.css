@@ -1,0 +1,92 @@
+/* Launcher: sign in -> league -> mode. */
+
+.launcher-body { display: block; }
+#launcher { max-width: 780px; margin: 0 auto; padding: 42px 22px 60px; }
+#launcher h1 { margin: 0 0 4px; font-size: 25px; letter-spacing: -.01em; }
+.tagline { color: var(--muted); margin: 0 0 30px; font-size: 13.5px; }
+
+.step {
+  display: flex; gap: 15px; padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.step.disabled { opacity: .42; pointer-events: none; }
+.stepnum {
+  flex: 0 0 27px; height: 27px; border-radius: 50%; background: var(--panel-2);
+  border: 1px solid var(--line); display: flex; align-items: center;
+  justify-content: center; font-size: 12.5px; font-weight: 700; color: var(--muted);
+}
+.step.done .stepnum { background: var(--good); border-color: var(--good); color: #05121f; }
+.stepbody { flex: 1; min-width: 0; }
+.stepbody h2 { margin: 2px 0 8px; font-size: 14.5px; }
+.muted { color: var(--muted); font-size: 12.5px; }
+
+button {
+  border-radius: 7px; padding: 8px 15px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  margin-top: 9px;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #05121f; font-weight: 650; }
+button.primary:hover { filter: brightness(1.1); }
+button.ghost:hover { border-color: var(--text); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.leaguerow {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 8px; margin-bottom: 7px;
+  cursor: pointer; background: var(--panel);
+}
+.leaguerow:hover { border-color: var(--accent); }
+.leaguerow.on { border-color: var(--accent); background: #16283c; }
+.leaguerow .lname { font-weight: 650; font-size: 13.5px; }
+.leaguerow .lteam { color: var(--muted); font-size: 11.5px; margin-left: auto; }
+
+.modecard {
+  display: block; width: 100%; text-align: left; padding: 13px 15px;
+  border: 1px solid var(--line); border-radius: 9px; margin-bottom: 9px;
+  background: var(--panel); cursor: pointer;
+}
+.modecard:hover:not(:disabled) { border-color: var(--accent); }
+.modecard .mt { font-weight: 650; font-size: 14px; margin-bottom: 3px; }
+.modecard .md { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.modecard .lock { color: var(--warn); font-size: 11.5px; margin-top: 5px; }
+.modecard:disabled { opacity: .5; cursor: not-allowed; }
+
+#running {
+  margin-top: 22px; padding: 13px 15px; border-radius: 9px;
+  background: #16283c; border: 1px solid var(--accent);
+}
+#running .rt { font-weight: 650; font-size: 13.5px; margin-bottom: 3px; }
+#running .rd { color: var(--muted); font-size: 12px; }
+
+#links { margin-top: 20px; display: flex; gap: 16px; }
+#links a { color: var(--accent); font-size: 13px; text-decoration: none; }
+#links a:hover { text-decoration: underline; }
+
+/* practice modal */
+.modal {
+  position: fixed; inset: 0; background: #000a; display: flex;
+  align-items: center; justify-content: center; z-index: 50;
+}
+.modalbox {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 22px; width: min(520px, 92vw);
+}
+.modalbox h2 { margin: 0 0 6px; font-size: 17px; }
+.modalbox label {
+  display: block; margin: 15px 0 6px; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.slots .slot {
+  width: 38px; height: 34px; display: flex; align-items: center;
+  justify-content: center; border: 1px solid var(--line); border-radius: 7px;
+  cursor: pointer; font-size: 13px; background: var(--panel-2);
+}
+.slots .slot:hover { border-color: var(--accent); }
+.slots .slot.on { background: var(--accent); border-color: var(--accent); color: #05121f; font-weight: 700; }
+.modalbox select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 7px 10px; font-size: 13px; width: 100%;
+}
+.modalbtns { display: flex; gap: 9px; justify-content: flex-end; margin-top: 20px; }
+.modalbtns button { margin-top: 0; }

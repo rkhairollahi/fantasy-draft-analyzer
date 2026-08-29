@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable
 
-from ..models import Player
+from ..models import Player, is_real_pick
 
 MOCK_LOBBY_URL = "https://fantasy.espn.com/football/mockdraftlobby"
 
@@ -367,7 +367,7 @@ class MockDraftWatcher:
         keys = set(node.keys())
         if any(required <= keys for required in _PICK_KEY_SETS):
             player_id = node.get("playerId")
-            if isinstance(player_id, int) and player_id > 0:
+            if is_real_pick(player_id):
                 player = self.by_id.get(player_id)
                 self._emit(
                     ObservedPick(

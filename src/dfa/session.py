@@ -20,6 +20,10 @@ from .tags import TagStore
 # genuine committee partner rather than replacement-level depth.
 SPLIT_ADP_CUTOFF = 100
 
+# Rank this deep regardless of what the board displays, so the background
+# news/risk workers have a queue that extends past the visible rows.
+NEWS_DEPTH = 120
+
 
 @dataclass
 class DraftSession:
@@ -278,8 +282,9 @@ class DraftSession:
         with self._lock:
             state = self.ensure_state()
             self.label_picks()
-            recs = self.recommendations(limit=top_n)
-            self.last_rec_ids = [r.player.espn_id for r in recs]
+            ranked = self.recommendations(limit=max(top_n, NEWS_DEPTH))
+            self.last_rec_ids = [r.player.espn_id for r in ranked]
+            recs = ranked[:top_n]
             roster = self.roster_state()
             runs = detect_runs(state)
             my_next = state.my_next_picks(count=3)

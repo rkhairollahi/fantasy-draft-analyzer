@@ -14,3 +14,4 @@ __pycache__/
 *cookies*.json
 capture.log
 draft-prep.json
+espn-session.json

@@ -13,6 +13,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from ..session import DraftSession
+from ..watch.espn_league import EspnLeagueWatcher
+
+# How many players to keep news and risk warm for. The board shows 30, but
+# runs and reaches mean you often click well past that, and fetches are
+# cached and concurrent so the extra depth costs little after the first pass.
+NEWS_DEPTH = 120
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -27,15 +33,140 @@ def create_app(session: DraftSession) -> FastAPI:
     app.state.session = session
     app.state.news_thread = None
     app.state.depth_charts = None
+    if not hasattr(app.state, "store"):
+        from ..auth import SessionStore
+        from ..config import PROJECT_ROOT
+
+        app.state.store = SessionStore(
+            PROJECT_ROOT / "espn-session.json",
+            PROJECT_ROOT / "cache" / "browser-profile",
+        )
+    from ..runner import ModeRunner
+
+    app.state.runner = ModeRunner(session, session.config)
+    _adopt_session(app, session, app.state.store)
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
+        return templates.TemplateResponse(request, "launcher.html", {"session": session})
+
+    @app.get("/board", response_class=HTMLResponse)
+    def board(request: Request):
         return templates.TemplateResponse(request, "dashboard.html", {"session": session})
+
+    # -- sign-in -----------------------------------------------------------
+
+    @app.get("/api/auth")
+    def api_auth():
+        store = app.state.store
+        data = store.state.payload()
+        data["selected_league"] = store.selected_league
+        return JSONResponse(data)
+
+    @app.post("/api/auth/login")
+    def api_login():
+        """Open a browser for the user to sign in to ESPN."""
+        store = app.state.store
+        if store.state.status in ("opening", "waiting"):
+            return {"ok": True, "already": True}
+
+        def worker():
+            from ..auth import sign_in
+
+            if sign_in(store):
+                _adopt_session(app, session, store)
+
+        threading.Thread(target=worker, daemon=True).start()
+        return {"ok": True}
+
+    @app.post("/api/auth/logout")
+    def api_logout():
+        app.state.store.clear()
+        _LEAGUE_CACHE_RESET()
+        return {"ok": True}
+
+    # -- mode control ------------------------------------------------------
+
+    @app.get("/api/modes")
+    def api_modes(league: str | None = None):
+        """What this league can currently do: practice, draft, free agency."""
+        store = app.state.store
+        league_id = league or store.selected_league
+        if not league_id:
+            raise HTTPException(status_code=400, detail="no league selected")
+        try:
+            snapshot = EspnLeagueWatcher(
+                league_id, session.config.season,
+                session.config.espn_s2, session.config.swid,
+            ).fetch()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"could not read league: {type(exc).__name__}",
+            ) from exc
+
+        s = snapshot.settings
+        return JSONResponse({
+            "league_id": league_id,
+            "teams": s.teams,
+            "rounds": s.rounds,
+            "scoring": s.scoring,
+            "my_team_id": s.my_team_id,
+            "my_draft_slot": s.my_draft_slot,
+            "draft_in_progress": snapshot.in_progress,
+            "draft_complete": snapshot.complete,
+            # Free agency only makes sense once there are rosters to analyse.
+            "free_agency_ready": snapshot.complete,
+            "runner": app.state.runner.state.payload(),
+        })
+
+    @app.post("/api/mode/practice")
+    def api_start_practice(league: str, slot: int, pick_seconds: int = 45):
+        snapshot = _league_snapshot(session, league)
+        if slot < 1 or slot > snapshot.settings.teams:
+            raise HTTPException(
+                status_code=400,
+                detail=f"slot must be between 1 and {snapshot.settings.teams}",
+            )
+        app.state.store.selected_league = league
+        app.state.store.save()
+        app.state.runner.start_practice(
+            snapshot.settings, slot,
+            league_name=_league_name(session, league),
+            pick_seconds=pick_seconds,
+        )
+        return {"ok": True, "slot": slot}
+
+    @app.post("/api/mode/live")
+    def api_start_live(league: str):
+        _league_snapshot(session, league)  # validates access
+        app.state.store.selected_league = league
+        app.state.store.save()
+        app.state.runner.start_live(league, _league_name(session, league))
+        return {"ok": True}
+
+    @app.post("/api/mode/stop")
+    def api_stop_mode():
+        app.state.runner.stop()
+        return {"ok": True}
+
+    @app.post("/api/practice/pick/{player_id}")
+    def api_practice_pick(player_id: int):
+        if not app.state.runner.submit_pick(player_id):
+            raise HTTPException(status_code=409, detail="not your pick right now")
+        return {"ok": True}
+
+    @app.get("/api/mode")
+    def api_mode():
+        return JSONResponse(app.state.runner.state.payload())
 
     @app.get("/api/state")
     def api_state(top: int = 30):
         data = session.dashboard(top_n=top)
-        _kick_news_refresh(app, session, top)
+        data["runner"] = app.state.runner.state.payload()
+        # News covers well beyond the visible board so a player is never
+        # clicked into an empty panel.
+        _kick_news_refresh(app, session, NEWS_DEPTH)
         return JSONResponse(data)
 
     @app.post("/api/pick/{player_id}")
@@ -340,6 +471,43 @@ def create_app(session: DraftSession) -> FastAPI:
     return app
 
 
+def _adopt_session(app, session: DraftSession, store) -> None:
+    """Push a signed-in ESPN session into the config the fetchers read."""
+    if not store.state.signed_in:
+        return
+    session.config.espn_s2 = store.state.espn_s2
+    session.config.swid = store.state.swid
+    session.config.browser_cookies = store.state.cookies
+    _LEAGUE_CACHE_RESET()
+
+
+def _LEAGUE_CACHE_RESET() -> None:
+    """Forget cached league/roster lookups after the session changes."""
+    global _LEAGUE_CACHE
+    _LEAGUE_CACHE = None
+    _POOL_CACHE.clear()
+
+
+def _league_snapshot(session: DraftSession, league_id: str):
+    try:
+        return EspnLeagueWatcher(
+            league_id, session.config.season,
+            session.config.espn_s2, session.config.swid,
+        ).fetch()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"could not read league {league_id}: {type(exc).__name__}",
+        ) from exc
+
+
+def _league_name(session: DraftSession, league_id: str) -> str:
+    for entry in _my_leagues(session):
+        if str(entry.get("id")) == str(league_id):
+            return entry.get("name") or ""
+    return ""
+
+
 def _depth_charts(session: DraftSession):
     """Depth charts for all teams, built once per process."""
     from ..sources.depthchart import build_name_lookup, fetch_depth_charts
@@ -472,7 +640,7 @@ def _kick_news_refresh(app: FastAPI, session: DraftSession, top: int) -> None:
         return
 
     # Reuse the ids the dashboard just ranked rather than re-ranking here.
-    ids = list(session.last_rec_ids[:top])
+    ids = list(session.last_rec_ids[:max(top, NEWS_DEPTH)])
     if not ids:
         return
 

@@ -17,12 +17,14 @@
   <div class="clock-side">
     <span id="league-meta"></span>
     <span id="next-picks"></span>
+    <a class="navlink" href="/">Menu</a>
     <a class="navlink" href="/prep" title="Pre-draft depth chart prep">Prep</a>
     <a class="navlink" href="/waivers" title="In-season free agents">Waivers</a>
     <span id="status-dot" class="dot" title="connection"></span>
   </div>
 </header>
 
+<div id="practicebar" class="hidden"></div>
 <div id="runbar" class="hidden"></div>
 
 <main>
@@ -53,7 +55,7 @@
     <section id="yourpick" class="hidden">
       <h2>You're on the clock — consider these three</h2>
       <div id="pickcards"></div>
-      <p class="disclaim">Recommendations only. Make the pick yourself in ESPN.</p>
+      <p class="disclaim"><span id="disclaimer">Recommendations only. Make the pick yourself in ESPN.</span></p>
     </section>
 
     <div class="content-head">
@@ -77,7 +79,7 @@
         <tr>
           <th class="num">#</th><th>Player</th><th>Pos</th><th class="num">Tier</th>
           <th class="num">ADP</th><th class="num">Proj</th><th class="num">VOR</th>
-          <th class="num">Last?</th><th class="why">Why</th>
+          <th class="num">Last?</th><th class="why">Why</th><th></th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
