@@ -226,6 +226,11 @@ class ModeRunner:
             self.config.espn_s2, self.config.swid,
         )
         self.session.status = "watching"
+        # Always adopt the league's real settings. Keeping whatever state the
+        # process started with meant a stale my_draft_slot in config.toml
+        # silently outranked the league's own answer.
+        self.session.state = None
+        adopted = False
 
         while not self._stop.is_set():
             try:
@@ -236,8 +241,9 @@ class ModeRunner:
                     return
                 continue
 
-            if self.session.state is None:
+            if not adopted:
                 self.session.apply_settings(snapshot.settings)
+                adopted = True
             self.session.team_names = dict(snapshot.team_names)
             self.session.slot_to_team = dict(snapshot.slot_to_team)
 
@@ -262,11 +268,17 @@ class ModeRunner:
                 return
 
     def _follow_draft_room(self, league_id: str) -> None:
-        """Attach to the draft room websocket for the duration of the draft.
+        """Open the draft room and follow it for the duration of the draft.
 
         ESPN's league API reports nothing while a draft is in progress - every
-        pick reads playerId -1 until it finishes - so the room's own socket is
-        the only live source.
+        pick reads playerId -1 until it finishes - so the room's own websocket
+        is the only live source.
+
+        The window is deliberately visible, and you draft in it. ESPN allows
+        one draft-room session per team: a headless watcher joining alongside
+        your own browser tab gets evicted the moment you join, which shows up
+        on the wire as `LEFT <teamId> <swid>` and silently stops the board
+        updating. Sharing one session is the only arrangement that works.
         """
         from .watch.espn_mock import MockDraftWatcher
 
@@ -282,7 +294,7 @@ class ModeRunner:
         watcher = MockDraftWatcher(
             players=session.players,
             on_pick=on_pick,
-            headless=True,
+            headless=False,   # you draft in this window; see the docstring
             cookies=self.config.browser_cookies or [],
             capture_dir=self.config.cache_dir / "live-capture",
         )
@@ -296,7 +308,17 @@ class ModeRunner:
                 return
             watcher.page.goto(href, wait_until="domcontentloaded")
             watcher.page.wait_for_timeout(6000)
-            self.state.detail = "Following your draft room."
+            try:
+                watcher.page.bring_to_front()
+            except Exception:
+                pass
+            self.state.detail = (
+                "Draft room open - make your picks in that window. "
+                "ESPN only allows one draft session per team."
+            )
+            recovered = self.backfill_from_capture(league_id)
+            if recovered:
+                self.state.detail += f" Recovered {recovered} earlier pick(s)."
 
             strikes = 0
             while not self._stop.is_set():
@@ -321,6 +343,36 @@ class ModeRunner:
                 watcher.stop()
             except Exception:
                 pass
+
+
+    def backfill_from_capture(self, league_id: str) -> int:
+        """Recover picks made before we connected, from the INIT frame.
+
+        The room sends its whole state once as INIT when you join; past picks
+        never arrive as SELECTED frames. INIT also carries each pick's real
+        team id and overall number, so the board is rebuilt in true draft
+        order rather than arrival order.
+        """
+        from .watch.init_frame import picks_from_log
+
+        path = self.config.cache_dir / "live-capture" / "capture.log"
+        if not path.exists():
+            return 0
+        text = path.read_text(errors="ignore")
+        recovered = 0
+        state = self.session.state
+        for pick in picks_from_log(text, league_id):
+            if self.session.record_pick(pick.player_id, team_id=pick.team_id):
+                recovered += 1
+            # Learn the true draft order from round one. ESPN's published
+            # pickOrder has disagreed with the order rooms actually run,
+            # which puts us in the wrong slot and throws off every
+            # "will he last?" and on-the-clock calculation.
+            if state and pick.overall <= state.settings.teams:
+                self.session.slot_to_team[pick.overall] = pick.team_id
+                if pick.team_id == state.settings.my_team_id:
+                    state.settings.my_draft_slot = pick.overall
+        return recovered
 
 
 def _find_draft_link(watcher, league_id: str, season: int) -> str | None:

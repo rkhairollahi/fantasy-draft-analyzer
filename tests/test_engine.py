@@ -854,3 +854,56 @@ class TestModeRunner(unittest.TestCase):
         time.sleep(0.5)
         self.assertEqual(self.runner.state.mode, "idle")
         self.assertIn("kaboom", self.runner.state.detail)
+
+
+class TestInitFrame(unittest.TestCase):
+    """Decoding the draft room's INIT blob, which carries past picks."""
+
+    def setUp(self):
+        import base64
+        import struct
+
+        from dfa.watch import init_frame
+
+        self.mod = init_frame
+        self.b64 = base64.b64encode
+        self.pack = struct.pack
+
+    def _blob(self, picks, lead=b"\x00" * 40):
+        """Build an INIT payload: [teamId, overall, playerId, slotId] records."""
+        body = b""
+        for team, overall, player, slot in picks:
+            rec = self.pack(">iiii", team, overall, player, slot)
+            body += rec + b"\x00" * (self.mod.STRIDE - len(rec))
+        return self.b64(lead + body + b"\x00" * 60).decode()
+
+    def test_decodes_picks_in_draft_order(self):
+        blob = self._blob([(7, 1, 4429795, 2), (10, 2, 4430807, 2), (6, 3, 4362628, 4)])
+        picks = self.mod.decode_init(blob)
+        self.assertEqual([p.overall for p in picks], [1, 2, 3])
+        self.assertEqual(picks[0].team_id, 7)
+        self.assertEqual(picks[2].player_id, 4362628)
+
+    def test_defenses_decode(self):
+        blob = self._blob([(1, 1, 4429795, 2), (2, 2, -16033, 16)])
+        picks = self.mod.decode_init(blob)
+        self.assertEqual(picks[1].player_id, -16033)
+
+    def test_garbage_returns_nothing(self):
+        self.assertEqual(self.mod.decode_init("not base64 at all !!"), [])
+        self.assertEqual(self.mod.decode_init(""), [])
+
+    def test_log_scoped_to_the_right_league(self):
+        """A capture log can hold several leagues; picking the biggest INIT
+        returned another league's draft entirely."""
+        small = self._blob([(1, 1, 4429795, 2)])
+        big = self._blob([(3, 1, 4430807, 2), (4, 2, 4362628, 4), (5, 3, 4426515, 4)])
+        # INIT arrives before the TOKEN naming its league.
+        log = (f"INIT {big}\nTOKEN 1:1065766326:1:{{X}}:1\n"
+               f"INIT {small}\nTOKEN 1:178401942:3:{{X}}:1\n")
+        self.assertEqual(len(self.mod.picks_from_log(log, "178401942")), 1)
+        self.assertEqual(len(self.mod.picks_from_log(log, "1065766326")), 3)
+
+    def test_unknown_league_returns_nothing(self):
+        log = f"INIT {self._blob([(1, 1, 4429795, 2)])}\nTOKEN 1:999:1:{{X}}:1\n"
+        self.assertEqual(self.mod.picks_from_log(log, "178401942"), [])

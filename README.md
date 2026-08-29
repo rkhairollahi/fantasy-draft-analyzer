@@ -44,8 +44,12 @@ That opens a menu that walks you through it:
      settings. Choose your slot and clock, then draft from the board. If the
      clock runs out the app takes its own top recommendation for you.
    - **Draft** — follows your real draft. Start it before the draft opens and
-     it waits, then attaches to the draft room while you pick in your own
-     ESPN tab.
+     it waits, then opens the draft room in a window. **Make your picks in
+     that window.** ESPN allows only one draft-room session per team, so a
+     separate watcher joining alongside your own tab gets evicted the moment
+     you join and the board silently stops updating. Sharing one session is
+     the only arrangement that works. Picks made before it connects are
+     recovered from the room's INIT frame.
    - **Free agency analysis** — locked until that league's draft is complete,
      because there are no rosters to analyse before then.
 

@@ -156,6 +156,16 @@ def create_app(session: DraftSession) -> FastAPI:
             raise HTTPException(status_code=409, detail="not your pick right now")
         return {"ok": True}
 
+    @app.post("/api/mode/backfill")
+    def api_backfill(league: str | None = None):
+        """Recover picks made before we joined the draft room."""
+        league_id = league or app.state.store.selected_league
+        if not league_id:
+            raise HTTPException(status_code=400, detail="no league selected")
+        recovered = app.state.runner.backfill_from_capture(league_id)
+        return {"ok": True, "recovered": recovered,
+                "picks": len(session.state.picks) if session.state else 0}
+
     @app.get("/api/mode")
     def api_mode():
         return JSONResponse(app.state.runner.state.payload())
