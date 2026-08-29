@@ -459,6 +459,39 @@ def create_app(session: DraftSession) -> FastAPI:
             ],
         })
 
+    @app.get("/api/history/{player_id}")
+    def api_history(player_id: int):
+        """Last season's week-by-week scoring, under this league's rules.
+
+        Fetched on hover rather than folded into /api/state: the board polls
+        every couple of seconds and carries 120 players, so shipping every
+        game log on every poll would be wasteful. Per-player files are cached
+        for a week, so a repeat hover is instant.
+        """
+        from ..sources.history import fetch_histories
+
+        hist = fetch_histories(
+            [player_id],
+            season=session.config.season - 1,
+            scoring=session.config.league.scoring,
+            cache_dir=session.config.cache_dir,
+        ).get(player_id)
+        ranked = session.board.get(player_id) if session.board else None
+        return JSONResponse({
+            "id": player_id,
+            "name": ranked.player.name if ranked else "",
+            "scoring": session.config.league.scoring,
+            "history": None if hist is None else {
+                "season": hist.season,
+                "total": hist.total,
+                "games": hist.games,
+                "ppg": hist.ppg,
+                "best": hist.best_week,
+                "weekly": [{"week": w, "pts": hist.weekly[w]} for w in sorted(hist.weekly)],
+                "missed": hist.missed_weeks,
+            },
+        })
+
     @app.get("/api/player/{player_id}")
     def api_player(player_id: int):
         rp = session.board.get(player_id) if session.board else None

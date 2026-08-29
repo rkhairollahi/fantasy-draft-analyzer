@@ -16,6 +16,9 @@ Built and verified against live 2026 ESPN data.
 - **Positional runs** — "5 of the last 7 picks were RB"
 - **Drop-off if I wait (VONA)** — what waiting a round actually costs you at
   each position
+- **Last season on hover** — hover any player's name on the board for a
+  week-by-week scoring chart, with the points printed on each bar, scored
+  under your league's rules. Weeks they didn't play show as hatched gaps.
 - **News + analyst outlook** for every player on the board — click any row
 - **Injury & red-flag risk** on the top 30 available — IR, surgery, holdouts,
   suspensions, practice status, and how many managers are dropping him.

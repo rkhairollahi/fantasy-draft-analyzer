@@ -114,10 +114,12 @@ function hoverHtml(p, scoring) {
   const first = h.weekly[0].week, last = h.weekly[h.weekly.length - 1].week;
   for (let w = first; w <= last; w++) {
     if (byWeek[w] !== undefined) {
-      const hpx = Math.max(2, Math.round((byWeek[w] / max) * 44));
-      weeks.push(`<div class="bar-w" style="height:${hpx}px" title="W${w}: ${byWeek[w]}"></div>`);
+      const hpx = Math.max(2, Math.round((byWeek[w] / max) * 40));
+      weeks.push(`<div class="wcol"><div class="wval">${byWeek[w].toFixed(1)}</div>
+        <div class="bar-w" style="height:${hpx}px" title="W${w}: ${byWeek[w]}"></div></div>`);
     } else {
-      weeks.push(`<div class="bar-w missed" title="W${w}: did not play"></div>`);
+      weeks.push(`<div class="wcol"><div class="wval">—</div>
+        <div class="bar-w missed" title="W${w}: did not play"></div></div>`);
     }
   }
   return `<div class="hc-head">${esc(p.name)} — ${h.season}</div>

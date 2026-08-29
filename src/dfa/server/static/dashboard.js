@@ -190,7 +190,7 @@ function renderBoard(d) {
     const risky = p.risk_level === "high" || p.risk_level === "medium";
     const main = `<tr data-id="${p.id}" class="${i < 3 ? "top" : ""}${risky ? " has-risk" : ""}">
       <td class="num">${i + 1}</td>
-      <td><span class="pname">${esc(p.name)}</span>${flags}
+      <td><span class="pname" data-hist="${p.id}">${esc(p.name)}</span>${flags}
           <span class="pmeta">${p.team}${p.bye ? " · bye " + p.bye : ""}</span>
           ${roomLine(p)}</td>
       <td><span class="posbadge pos-${p.pos}">${p.pos}${p.pos_rank}</span></td>
@@ -206,6 +206,7 @@ function renderBoard(d) {
     return main + (expanded === p.id ? detailRow(p) : "");
   }).join("");
 
+  body.querySelectorAll("[data-hist]").forEach(el => wireHistoryHover(el));
   body.querySelectorAll("[data-draft]").forEach(btn => {
     btn.onclick = (ev) => {
       ev.stopPropagation();   // don't also expand the row
@@ -270,6 +271,92 @@ function badgeSet(p) {
   }
   (p.tags || []).forEach(t => push(`tag-${t.tone}`, t.label.toUpperCase()));
   return out.join("");
+}
+
+/* ---- last season's scoring, on hover over a player's name ---- */
+const historyCache = new Map();
+let histTip = null;
+
+function ensureTip() {
+  if (!histTip) {
+    histTip = document.createElement("div");
+    histTip.id = "histtip";
+    histTip.className = "hidden";
+    document.body.appendChild(histTip);
+  }
+  return histTip;
+}
+
+function wireHistoryHover(el) {
+  const id = Number(el.dataset.hist);
+  let hoverToken = 0;
+
+  el.onmouseenter = async () => {
+    const tip = ensureTip();
+    const token = ++hoverToken;
+    tip.innerHTML = `<div class="ht-head">Loading…</div>`;
+    positionTip(tip, el);
+    tip.classList.remove("hidden");
+
+    let data = historyCache.get(id);
+    if (!data) {
+      try {
+        data = await (await fetch(`/api/history/${id}`)).json();
+        historyCache.set(id, data);
+      } catch { data = null; }
+    }
+    // The pointer may have moved on while we were fetching.
+    if (token !== hoverToken) return;
+    tip.innerHTML = historyHtml(data, el.textContent);
+    positionTip(tip, el);
+  };
+
+  el.onmouseleave = () => {
+    hoverToken++;
+    if (histTip) histTip.classList.add("hidden");
+  };
+}
+
+function positionTip(tip, el) {
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.min(window.innerWidth - 430, r.left) + "px";
+  // Flip above the row when there isn't room below.
+  const below = window.innerHeight - r.bottom;
+  if (below < 180) {
+    tip.style.top = (r.top + window.scrollY - 172) + "px";
+  } else {
+    tip.style.top = (r.bottom + window.scrollY + 6) + "px";
+  }
+}
+
+function historyHtml(d, fallbackName) {
+  const h = d && d.history;
+  const name = (d && d.name) || fallbackName || "";
+  if (!h || !h.weekly.length) {
+    return `<div class="ht-head">${esc(name)}</div>
+      <div class="ht-none">No prior-season games — rookie, or missed the year.</div>`;
+  }
+  const max = Math.max(...h.weekly.map(w => w.pts), 1);
+  const byWeek = Object.fromEntries(h.weekly.map(w => [w.week, w.pts]));
+  const first = h.weekly[0].week, last = h.weekly[h.weekly.length - 1].week;
+  const cols = [];
+  for (let w = first; w <= last; w++) {
+    if (byWeek[w] === undefined) {
+      cols.push(`<div class="ht-col"><div class="ht-val">—</div>
+        <div class="ht-bar out" style="height:10px" title="Week ${w}: did not play"></div>
+        <div class="ht-wk">${w}</div></div>`);
+    } else {
+      const pts = byWeek[w];
+      const px = Math.max(3, Math.round((pts / max) * 38));
+      cols.push(`<div class="ht-col"><div class="ht-val">${pts.toFixed(1)}</div>
+        <div class="ht-bar" style="height:${px}px" title="Week ${w}: ${pts}"></div>
+        <div class="ht-wk">${w}</div></div>`);
+    }
+  }
+  return `<div class="ht-head">${esc(name)} — ${h.season}</div>
+    <div class="ht-sub">${h.total} pts (${esc(d.scoring)}) · ${h.games} games ·
+      ${h.ppg} ppg · best ${h.best}</div>
+    <div class="ht-chart">${cols.join("")}</div>`;
 }
 
 function tagBadges(p) {
